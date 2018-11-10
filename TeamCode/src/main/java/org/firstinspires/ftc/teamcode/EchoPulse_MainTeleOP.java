@@ -32,6 +32,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 
@@ -107,28 +108,28 @@ public class EchoPulse_MainTeleOP extends LinearOpMode {
             if(gamepad1.left_bumper) {
                 if(speedDevider == 1)   ///if SlowMode OFF
                 {
-                    //motorSF.setPower(rotPower);
-                    //motorDF.setPower(-rotPower);
+                    motorSF.setPower(-rotPower);
+                    motorDF.setPower(rotPower);
                     motorDS.setPower(rotPower);
                     motorSS.setPower(-rotPower);
                 }
                 else   //if SlowMode ON
                 {
-                    motorSF.setPower(rotPower);
+                    motorSF.setPower(-rotPower);
                     motorDS.setPower(rotPower);
                 }
             }
             if(gamepad1.right_bumper) {
                 if(speedDevider == 1)      ///if SlowMode OFF
                 {
-                    //motorSF.setPower(-rotPower);
-                    //motorDF.setPower(rotPower);
+                    motorSF.setPower(rotPower);
+                    motorDF.setPower(-rotPower);
                     motorDS.setPower(-rotPower);
                     motorSS.setPower(rotPower);
                 }
                 else    //if SlowMode ON
                 {
-                    motorSF.setPower(-rotPower);
+                    motorSF.setPower(rotPower);
                     motorDS.setPower(-rotPower);
                 }
             }
@@ -141,31 +142,55 @@ public class EchoPulse_MainTeleOP extends LinearOpMode {
                 motorSF.setPower(rotPower);
             }
 
-
             // Telemetry
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("MotorSF: ", motorSF.getCurrentPosition());
             telemetry.addData("MotorDF: ", motorDF.getCurrentPosition());
             telemetry.addData("MotorDS: ", motorDS.getCurrentPosition());
             telemetry.addData("MotorSS: ", motorSS.getCurrentPosition());
-            telemetry.addData("MotorCarlig", motorCarlig.getCurrentPosition());
+            telemetry.addData("MotorCarlig: ", motorCarlig.getCurrentPosition());
             telemetry.addData("sasiuPowerX ", sasiuPowerX);
             telemetry.update();
 
-            // Limite
+            /* Coboara */
             if(gamepad2.left_bumper) {
-                motorCarlig.setTargetPosition(0);
-                motorCarlig.setPower(rotPower);
+                runToPoint(motorCarlig, rotPower, 0);
             }
+            /* Urca */
             else if(gamepad2.right_bumper) {
-                motorCarlig.setTargetPosition(-10000);
-                motorCarlig.setPower(-rotPower);
-            } else {
+                runToPoint(motorCarlig, rotPower, -10000);
+            }
+            /*
+            * Oprire de urgenta, in caz de eroare
+            * Dupa teste poate fi stearsa
+            */
+            else {
                 motorCarlig.setPower(0);
             }
         }
     }
+    private void runToPoint(DcMotor motor, double power, int distance) {
+        motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        motor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        motor.setTargetPosition(distance);
+        motor.setPower(power);
+        while (motor.isBusy()) {
+            idle();
+            if (!opModeIsActive() || Thread.currentThread().isInterrupted()) {
+                try {
+                    throw new InterruptedException();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        stopMotor(motor);
+        motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+    }
 
+    private void stopMotor(DcMotor motor) {
+        motor.setPower(0);
+    }
 
     private void setBehaviour(String str){
         if(str.equals("Break")) {
