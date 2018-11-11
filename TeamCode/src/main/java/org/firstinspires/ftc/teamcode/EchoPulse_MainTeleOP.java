@@ -32,9 +32,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
-
 
 @TeleOp(name="MainTeleOP", group="FTC")
 //@Disabled
@@ -47,6 +45,7 @@ public class EchoPulse_MainTeleOP extends LinearOpMode {
     private double speedDevider = 1;
     private boolean toggleSpeed = false;
     private boolean toggleBrake = false;
+    private boolean useLimits = true;
 
     @Override
     public void runOpMode() {
@@ -66,6 +65,7 @@ public class EchoPulse_MainTeleOP extends LinearOpMode {
         motorDS.setDirection(DcMotor.Direction.FORWARD);
         motorSS.setDirection(DcMotor.Direction.FORWARD);
         motorCarlig.setDirection(DcMotor.Direction.FORWARD);
+        motorCarlig.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         // Wait for the game to start (driver presses PLAY)
         runtime.reset();
@@ -85,11 +85,40 @@ public class EchoPulse_MainTeleOP extends LinearOpMode {
             if(gamepad1.a && toggleSpeed) {speedDevider = 2.75; rotPower = 0.005;toggleSpeed = false;sleep(100);} //SlowMode ON
             else if(gamepad1.a && !toggleSpeed) { speedDevider = 1; rotPower = 0.7;toggleSpeed = true;sleep(100);} //SlowMode OFF
 
+            if (gamepad2.y) {
+                useLimits = false;
+            }
+
+            if (gamepad2.x) {
+                useLimits = true;
+            }
+
+            double carligPower = 0.8;
+            int limitEnd = -16300;
+            if (gamepad2.a && motorCarlig.getCurrentPosition() <= -16300) {
+                limitEnd = -2618;
+                if (motorCarlig.getCurrentPosition() < limitEnd)
+                    motorCarlig.setPower(carligPower);
+                else {
+                    limitEnd = -16300;
+                }
+            }
+
             if(gamepad1.left_stick_y == 0) {
                 motorSF.setPower(0);
                 motorDF.setPower(0);
                 motorDS.setPower(0);
                 motorSS.setPower(0);
+            }
+
+            if (gamepad1.dpad_left) {
+                motorSF.setPower(rotPower);
+                motorDS.setPower(rotPower);
+            }
+
+            if (gamepad1.dpad_right) {
+                motorDF.setPower(-rotPower);
+                motorSS.setPower(-rotPower);
             }
 
             if(-gamepad1.left_stick_y > 0.2 || -gamepad1.left_stick_y < -0.2) {
@@ -108,38 +137,28 @@ public class EchoPulse_MainTeleOP extends LinearOpMode {
             if(gamepad1.left_bumper) {
                 if(speedDevider == 1)   ///if SlowMode OFF
                 {
-                    motorSF.setPower(-rotPower);
+                    motorSF.setPower(rotPower);
                     motorDF.setPower(rotPower);
                     motorDS.setPower(rotPower);
-                    motorSS.setPower(-rotPower);
+                    motorSS.setPower(rotPower);
                 }
                 else   //if SlowMode ON
                 {
-                    motorSF.setPower(-rotPower);
                     motorDS.setPower(rotPower);
                 }
             }
             if(gamepad1.right_bumper) {
                 if(speedDevider == 1)      ///if SlowMode OFF
                 {
-                    motorSF.setPower(rotPower);
+                    motorSF.setPower(-rotPower);
                     motorDF.setPower(-rotPower);
                     motorDS.setPower(-rotPower);
-                    motorSS.setPower(rotPower);
+                    motorSS.setPower(-rotPower);
                 }
                 else    //if SlowMode ON
                 {
-                    motorSF.setPower(rotPower);
-                    motorDS.setPower(-rotPower);
+                    motorSS.setPower(-rotPower);
                 }
-            }
-            if (gamepad1.left_stick_button) {
-                motorSS.setPower(-rotPower);
-                motorDF.setPower(rotPower);
-            }
-            if (gamepad1.right_stick_button) {
-                motorDS.setPower(-rotPower);
-                motorSF.setPower(rotPower);
             }
 
             // Telemetry
@@ -148,48 +167,33 @@ public class EchoPulse_MainTeleOP extends LinearOpMode {
             telemetry.addData("MotorDF: ", motorDF.getCurrentPosition());
             telemetry.addData("MotorDS: ", motorDS.getCurrentPosition());
             telemetry.addData("MotorSS: ", motorSS.getCurrentPosition());
+            telemetry.addData("Limite: ", useLimits ? "Acitvate" : "Dezactivate");
             telemetry.addData("MotorCarlig: ", motorCarlig.getCurrentPosition());
             telemetry.addData("sasiuPowerX ", sasiuPowerX);
             telemetry.update();
 
-            /* Coboara */
-            if(gamepad2.left_bumper) {
-                runToPoint(motorCarlig, rotPower, 0);
-            }
-            /* Urca */
-            else if(gamepad2.right_bumper) {
-                runToPoint(motorCarlig, rotPower, -10000);
-            }
-            /*
-            * Oprire de urgenta, in caz de eroare
-            * Dupa teste poate fi stearsa
-            */
-            else {
-                motorCarlig.setPower(0);
-            }
-        }
-    }
-    private void runToPoint(DcMotor motor, double power, int distance) {
-        motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        motor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        motor.setTargetPosition(distance);
-        motor.setPower(power);
-        while (motor.isBusy()) {
-            idle();
-            if (!opModeIsActive() || Thread.currentThread().isInterrupted()) {
-                try {
-                    throw new InterruptedException();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+            if (useLimits) {
+                int limitStart = 0;
+                /* Coboara */
+                /* using carligPower instead of rotPower to be independent of slowMode */
+                if (gamepad2.left_bumper && motorCarlig.getCurrentPosition() < limitStart) {
+                    motorCarlig.setPower(carligPower);
                 }
+                /* Urca */
+                else if (gamepad2.right_bumper && motorCarlig.getCurrentPosition() > limitEnd) {
+                    motorCarlig.setPower(-carligPower);
+                }
+                else {
+                    motorCarlig.setPower(0);
+                }
+            } else {
+                if (gamepad2.left_bumper)
+                    motorCarlig.setPower(carligPower);
+                else if (gamepad2.right_bumper)
+                    motorCarlig.setPower(-carligPower);
+                else motorCarlig.setPower(0);
             }
         }
-        stopMotor(motor);
-        motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-    }
-
-    private void stopMotor(DcMotor motor) {
-        motor.setPower(0);
     }
 
     private void setBehaviour(String str){
